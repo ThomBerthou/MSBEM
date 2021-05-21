@@ -5,14 +5,12 @@ Created on Tue May 18 11:40:16 2021
 The Most Simple Building Energy Model is for students and teachers to learn and teach about energy building simulation through a simple exemple
 This model simulate heating and cooling needs for a buildings at a chosen time step (maximum is 1800 secondes)
 What to do with this model :
-
  - Load shedding assesment
  - Sensitivity analysis
  - Refurbishing assesment
  - Calibration from on site measurment or detail simulation
  - Model Predictive Control
  - Building stock simulation
-
 """
 import numpy as np
 import matplotlib.pyplot as plt
@@ -21,7 +19,7 @@ import matplotlib.pyplot as plt
 #TODO : read external weather files for more realistic simulation
 
 #Outdoor temperature
-t_out = 25*np.sin(np.linspace(0, np.pi, 8760)) + np.tile(5*np.sin(np.linspace(0, 2*np.pi, 24)), 365)  
+t_out = 25*np.sin(np.linspace(0, np.pi, 8760)) + np.tile(5*np.sin(np.linspace(-np.pi, np.pi, 24)), 365)  
 
 #Heating setpoint temperature
 t_set_winter = 21*np.ones(24)
@@ -45,7 +43,7 @@ internal_load_solar = 0*np.ones(24)
 internal_load_solar[8:19] = 100*np.array([1,2,3,4,5,6,5,4,3,2,1])
 internal_load_solar = np.tile(internal_load_solar,365) * 5*np.sin(np.linspace(0, np.pi, 8760))
 #External heat load from solar flux which is absorbed by walls TODO : more realistic solar flux
-external_load_solar = 10*internal_load_solar
+external_load_solar = 5*internal_load_solar
 
 rc_solicitation = dict()
 rc_solicitation['t_out'] = t_out
@@ -56,7 +54,7 @@ rc_solicitation['internal_load_solar'] = internal_load_solar
 rc_solicitation['external_load_solar'] = external_load_solar
 
 #%% Building characteristics for RC model parameters calculation
-rho_air = 1.2 # air Density (kg.m-3)
+rho_air = 1.2 # air density (kg.m-3)
 c_air = 1004 # air heat capacity (J.K^-1.kg^-1)
 s_floor = 100 # living floor [m²]
 s_in = 435 # opaques walls surface (vertical and horizontal) in contact with outdoor temperature [m²]
@@ -68,18 +66,18 @@ h_in = 6 # indoor convection coefficient [W/(K.m²)]
 h_out = 20 # outdoor convection coefficient [W/(K.m²)]
 m_air_new = 0.6 # mass flow rate of fresh air [Vol/hour]
 v_in = 250 # indoor air volume [m3]
-inertia = 432000 # surface inertia of building structure [J/K.m²]
+inertia_surf = 432000 # surface inertia of building structure [J/K.m²]
 rc_parameters = dict() #dictionary with the R and C values
 rc_parameters['r_conv_ext'] = 1/(h_out*s_out)
 rc_parameters['r_cond_wall'] = 1/(u_out*s_out)
 rc_parameters['r_conv_int'] = 1/(h_in*s_in)
 rc_parameters['r_infiltration'] = 1/(rho_air*c_air*m_air_new*v_in/3600)
 rc_parameters['r_wondows'] = 1/(u_windows*s_windows)
-rc_parameters['C_air'] = v_in * c_air * rho_air * 10 # add inertia of furniture (x10)
-rc_parameters['C_wall'] = inertia * s_floor
+rc_parameters['C_air'] = v_in * c_air * rho_air * 15 # add inertia of furniture and light walls (x15)
+rc_parameters['C_wall'] = inertia_surf * s_floor
 
 #%% Simulation parameters
-delta = 600 # simulation time step in seconde (300 secondes to 1200 secondes)
+delta = 600 # simulation time step in seconde (300 secondes to 1800 secondes)
 p_heat_max = 100 * s_floor # maximum heat delivered (watt)
 p_cold_max = -50 * s_floor # maximum cold delivered (watt)
 
@@ -119,6 +117,7 @@ def R6C2 (delta, p_heat_max, p_cold_max, rc_solicitation, rc_parameters) :
     heating_need = [0] #watt
     cooling_need = [0] #watt
     t_in = [ti] # indoor temperature [°C]
+    t_wall = [tw] # wall temperature [°C]
     for i in range(1,int(8760*3600/delta)): #loot over time (one year), Euler explicit for resolution (stable under condition !)
         ts = (ti/ri + tw/rs + source2[i])/(1/ri + 1/rs)
         th = (tw/rw + t_out[i]/re + source3[i])/(1/rw + 1/re)
@@ -133,23 +132,28 @@ def R6C2 (delta, p_heat_max, p_cold_max, rc_solicitation, rc_parameters) :
         heating_need.append(p_heat)
         cooling_need.append(p_cold)
         t_in.append(ti)
+        t_wall.append(tw)
     
-    return (heating_need, cooling_need, t_in)
+    return (heating_need, cooling_need, t_in, t_wall)
 
-(heating_need, cooling_need, t_in) = R6C2(delta, p_heat_max, p_cold_max, rc_solicitation, rc_parameters)
+(heating_need, cooling_need, t_in, t_wall) = R6C2(delta, p_heat_max, p_cold_max, rc_solicitation, rc_parameters)
 
 #%% print some figures
 plt.figure(1)
 plt.plot(np.repeat(t_set_winter,int(3600/delta)))
 plt.plot(np.repeat(t_set_summer,int(3600/delta)))
+plt.plot(np.repeat(t_out,int(3600/delta)))
 plt.plot(t_in)
+plt.plot(t_wall)
 plt.xlabel('time step')
 plt.ylabel('temperature (°C)')
-plt.legend(['t_set_winter','t_set_summer','t_in'])
+plt.legend(['t_set_winter','t_set_summer','t_out','t_in', 't_wall'])
 
 plt.figure(2)
+plt.plot(np.repeat(internal_load_occ,int(3600/delta)))
+plt.plot(np.repeat(internal_load_solar,int(3600/delta)))
 plt.plot(heating_need)
 plt.plot(cooling_need)
 plt.xlabel('teme step')
 plt.ylabel('Needs (W)')
-plt.legend(['heating_need','cooling_need'])
+plt.legend(['internal_load_occ','internal_load_solar','heating_need','cooling_need'])
