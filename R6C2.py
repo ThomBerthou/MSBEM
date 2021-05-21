@@ -17,19 +17,19 @@ What to do with this model :
 import numpy as np
 import matplotlib.pyplot as plt
 
-#%% weather data and other solicitations at 1 hour time step for one year, 
+#%% Weather data and other solicitations at 1 hour time step for one year
 #TODO : read external weather files for more realistic simulation
 
 #Outdoor temperature
 t_out = 25*np.sin(np.linspace(0, np.pi, 8760)) + np.tile(5*np.sin(np.linspace(0, 2*np.pi, 24)), 365)  
 
-#heating setpoint temperature
+#Heating setpoint temperature
 t_set_winter = 21*np.ones(24)
 t_set_winter[0:7] += -4
 t_set_winter = np.tile(t_set_winter,365)
 t_set_winter[120*24:300*24] = 12 #no heating in summer
 
-#cooling setpoint temperature
+#Cooling setpoint temperature
 t_set_summer = 25*np.ones(24)
 t_set_summer = np.tile(t_set_summer,365)
 t_set_summer[0:120*24] = 30  #no cooling in winter
@@ -55,12 +55,12 @@ rc_solicitation['internal_load_occ'] = internal_load_occ
 rc_solicitation['internal_load_solar'] = internal_load_solar
 rc_solicitation['external_load_solar'] = external_load_solar
 
-#%% building characteristics for RC model parameters calculation
+#%% Building characteristics for RC model parameters calculation
 rho_air = 1.2 # air Density (kg.m-3)
 c_air = 1004 # air heat capacity (J.K^-1.kg^-1)
 s_floor = 100 # living floor [m²]
-s_in = 435 # opaques walls (vertical and horizontal) in contact with outdoor temperature [m²]
-s_out = 235 # opaques walls (vertical and horizontal) in contact with indoor temperature [m²]
+s_in = 435 # opaques walls surface (vertical and horizontal) in contact with outdoor temperature [m²]
+s_out = 235 # opaques walls surface (vertical and horizontal) in contact with indoor temperature [m²]
 s_windows = 15 # surface of windows [m²]
 u_out = 1.5 # mean U value of opaques walls (vertical and horizontal) [W/(K.m²)]
 u_windows = 2.5 #mean U value of windows (conduction and convection included) [W/(K.m²)]
@@ -78,7 +78,7 @@ rc_parameters['r_wondows'] = 1/(u_windows*s_windows)
 rc_parameters['C_air'] = v_in * c_air * rho_air * 10 # add inertia of furniture (x10)
 rc_parameters['C_wall'] = inertia * s_floor
 
-#%% simulation parameters
+#%% Simulation parameters
 delta = 1800 # simulation time step in seconde (300 secondes to 1800 secondes)
 p_heat_max = 100 * s_floor # maximum heat delivered (watt)
 p_cold_max = -50 * s_floor # maximum cold delivered (watt)
@@ -88,7 +88,7 @@ def R6C2 (delta, p_heat_max, p_cold_max, rc_solicitation, rc_parameters) :
     '''
     adapted from Berthou et al. 2014 : Development and validation of a gray box model 
     to predict thermal behavior of occupied office buildings, Energy and Buildings
-    TODO : ground temperature, add HVAC systemes, more stable discretization scheme
+    TODO : more stable discretization scheme, ground temperature, add HVAC systemes... 
     '''
     #RC values from rc_parameters
     rg = rc_parameters['r_wondows']
@@ -100,7 +100,7 @@ def R6C2 (delta, p_heat_max, p_cold_max, rc_solicitation, rc_parameters) :
     ci = rc_parameters['C_air']
     cw = rc_parameters['C_wall']
     
-    #solicitation from rc_solicitation adapted to chosen simulation time step
+    #Solicitation from rc_solicitation adapted to chosen simulation time step
     alpha = 0.5 # radiative part of internal loads
     source1 = np.repeat((1-alpha) * (rc_solicitation['internal_load_occ'] + rc_solicitation['internal_load_solar']), int(3600/delta))
     source2 = np.repeat(alpha * (rc_solicitation['internal_load_occ'] + rc_solicitation['internal_load_solar']), int(3600/delta))
@@ -109,15 +109,15 @@ def R6C2 (delta, p_heat_max, p_cold_max, rc_solicitation, rc_parameters) :
     t_set_winter = np.repeat(rc_solicitation['t_set_winter'], int(3600/delta))
     t_set_summer = np.repeat(rc_solicitation['t_set_summer'], int(3600/delta))
     
-    #initial values of ti (indoor temperature), tw (walls temperature) and powers
+    #Initial values of ti (indoor temperature), tw (walls temperature) and powers
     ti = t_set_winter[0]
     tw = t_set_winter[0]
     p_heat = 0
     p_cold = 0
        
-    #lists to store values of interest 
-    heating_need = [] #watt
-    cooling_need = [] #watt
+    #Lists to store values of interest 
+    heating_need = [0] #watt
+    cooling_need = [0] #watt
     t_in = [ti] # indoor temperature [°C]
     for i in range(1,int(8760*3600/delta)): #loot over time (one year), Euler explicit for resolution (stable under condition !)
         ts = (ti/ri + tw/rs + source2[i])/(1/ri + 1/rs)
@@ -140,8 +140,8 @@ def R6C2 (delta, p_heat_max, p_cold_max, rc_solicitation, rc_parameters) :
 
 #%% print some figures
 plt.figure(1)
-plt.plot(t_set_winter)
-plt.plot(t_set_summer)
+plt.plot(np.repeat(t_set_winter,int(3600/delta)))
+plt.plot(np.repeat(t_set_summer,int(3600/delta)))
 plt.plot(t_in)
 plt.xlabel('time step')
 plt.ylabel('temperature (°C)')
