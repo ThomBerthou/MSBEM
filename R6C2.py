@@ -79,7 +79,7 @@ rc_parameters['C_air'] = v_in * c_air * rho_air * 10 # add inertia of furniture 
 rc_parameters['C_wall'] = inertia * s_floor
 
 #%% Simulation parameters
-delta = 1800 # simulation time step in seconde (300 secondes to 1800 secondes)
+delta = 600 # simulation time step in seconde (300 secondes to 1200 secondes)
 p_heat_max = 100 * s_floor # maximum heat delivered (watt)
 p_cold_max = -50 * s_floor # maximum cold delivered (watt)
 
