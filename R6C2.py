@@ -3,12 +3,12 @@
 Created on Tue May 18 11:40:16 2021
 @author: thomas.berthou
 The Most Simple Building Energy Model is for students and teachers to learn and teach about energy building simulation through a simple exemple
-This model simulate heating and cooling needs for a buildings at a chosen time step (maximum is 1800 secondes)
+This model simulate heating and cooling needs for a buildings at a chosen time step (maximum is 1800 seconds)
 What to do with this model :
- - Load shedding assesment
+ - Load shedding assessment
  - Sensitivity analysis
- - Refurbishing assesment
- - Calibration from on site measurment or detail simulation
+ - Refurbishing assessment
+ - Calibration from on site measurement or detail simulation
  - Model Predictive Control
  - Building stock simulation
 """
@@ -57,8 +57,8 @@ rc_solicitation['external_load_solar'] = external_load_solar
 rho_air = 1.2 # air density (kg.m-3)
 c_air = 1004 # air heat capacity (J.K^-1.kg^-1)
 s_floor = 100 # living floor [m²]
-s_in = 435 # opaques walls surface (vertical and horizontal) in contact with outdoor temperature [m²]
-s_out = 235 # opaques walls surface (vertical and horizontal) in contact with indoor temperature [m²]
+s_in = 435 # opaque walls surface (vertical and horizontal) in contact with outdoor temperature [m²]
+s_out = 235 # opaque walls surface (vertical and horizontal) in contact with indoor temperature [m²]
 s_windows = 15 # surface of windows [m²]
 u_out = 1.5 # mean U value of opaques walls (vertical and horizontal) [W/(K.m²)]
 u_windows = 2.5 #mean U value of windows (conduction and convection included) [W/(K.m²)]
@@ -67,7 +67,7 @@ h_out = 20 # outdoor convection coefficient [W/(K.m²)]
 m_air_new = 0.6 # mass flow rate of fresh air [Vol/hour]
 v_in = 250 # indoor air volume [m3]
 inertia_surf = 432000 # surface inertia of building structure [J/K.m²]
-rc_parameters = dict() #dictionary with the R and C values
+rc_parameters = dict() # dictionary with the R and C values
 rc_parameters['r_conv_ext'] = 1/(h_out*s_out)
 rc_parameters['r_cond_wall'] = 1/(u_out*s_out)
 rc_parameters['r_conv_int'] = 1/(h_in*s_in)
@@ -77,7 +77,7 @@ rc_parameters['C_air'] = v_in * c_air * rho_air * 15 # add inertia of furniture 
 rc_parameters['C_wall'] = inertia_surf * s_floor
 
 #%% Simulation parameters
-delta = 600 # simulation time step in seconde (300 secondes to 1800 secondes)
+delta = 600 # simulation time step in second (300 seconds to 1800 seconds)
 p_heat_max = 100 * s_floor # maximum heat delivered (watt)
 p_cold_max = -50 * s_floor # maximum cold delivered (watt)
 
@@ -86,7 +86,7 @@ def R6C2 (delta, p_heat_max, p_cold_max, rc_solicitation, rc_parameters) :
     '''
     adapted from Berthou et al. 2014 : Development and validation of a gray box model 
     to predict thermal behavior of occupied office buildings, Energy and Buildings
-    TODO : more stable discretization scheme, ground temperature, add HVAC systemes... 
+    TODO : more stable discretization scheme, ground temperature, add HVAC systems... 
     '''
     #RC values from rc_parameters
     rg = rc_parameters['r_wondows']
@@ -118,7 +118,7 @@ def R6C2 (delta, p_heat_max, p_cold_max, rc_solicitation, rc_parameters) :
     cooling_need = [0] #watt
     t_in = [ti] # indoor temperature [°C]
     t_wall = [tw] # wall temperature [°C]
-    for i in range(1,int(8760*3600/delta)): #loot over time (one year), Euler explicit for resolution (stable under condition !)
+    for i in range(1,int(8760*3600/delta)): #loop over time (one year), Euler explicit for resolution (stable under condition !)
         ts = (ti/ri + tw/rs + source2[i])/(1/ri + 1/rs)
         th = (tw/rw + t_out[i]/re + source3[i])/(1/rw + 1/re)
         tw = ((th-tw)/rw + (ts-tw)/rs)*delta/cw + tw
