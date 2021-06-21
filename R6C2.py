@@ -75,19 +75,32 @@ rc_parameters['r_infiltration'] = 1/(rho_air*c_air*m_air_new*v_in/3600)
 rc_parameters['r_wondows'] = 1/(u_windows*s_windows)
 rc_parameters['C_air'] = v_in * c_air * rho_air * 15 # add inertia of furniture and light walls (x15)
 rc_parameters['C_wall'] = inertia_surf * s_floor
-
+    
 #%% Simulation parameters
-delta = 600 # simulation time step in second (300 seconds to 1800 seconds)
-p_heat_max = 100 * s_floor # maximum heat delivered (watt)
-p_cold_max = -50 * s_floor # maximum cold delivered (watt)
-
+delta = 600
+simu_parameters = dict()
+simu_parameters['delta'] = delta # simulation time step in second (300 seconds to 1800 seconds)
+simu_parameters['p_heat_max'] = [100 * s_floor]* len(t_out) # maximum heat delivered 100 W per m² (watt)
+simu_parameters['p_cold_max'] = [-50 * s_floor] * len(t_out) # maximum cold delivered  50 W per m² (watt)
+simu_parameters['start'] = 0 # first day of simulation
+simu_parameters['stop'] = 365 # last day of simulation
+#TODO simulate a large commercial building in place of a dwelling
 #%% R6C2 dynamic thermal model (no HVAC system)
-def R6C2 (delta, p_heat_max, p_cold_max, rc_solicitation, rc_parameters) :
+def R6C2 (simu_parameters, rc_solicitation, rc_parameters) :
     '''
     adapted from Berthou et al. 2014 : Development and validation of a gray box model 
     to predict thermal behavior of occupied office buildings, Energy and Buildings
     TODO : more stable discretization scheme, ground temperature, add HVAC systems... 
     '''
+    #Simulation parameters unpack
+    delta = simu_parameters['delta']
+    p_heat_max = simu_parameters['p_heat_max']
+    p_heat_max = np.repeat(p_heat_max, int(3600/delta))
+    p_cold_max = simu_parameters['p_cold_max']
+    p_cold_max = np.repeat(p_cold_max, int(3600/delta))
+    start = int(simu_parameters['start'] * 24*3600/delta)
+    stop = int(simu_parameters['stop'] * 24*3600/delta)
+    
     #RC values from rc_parameters
     rg = rc_parameters['r_wondows']
     rv = rc_parameters['r_infiltration']
@@ -108,8 +121,8 @@ def R6C2 (delta, p_heat_max, p_cold_max, rc_solicitation, rc_parameters) :
     t_set_summer = np.repeat(rc_solicitation['t_set_summer'], int(3600/delta))
     
     #Initial values of ti (indoor temperature), tw (walls temperature) and powers
-    ti = t_set_winter[0]
-    tw = t_set_winter[0]
+    ti = t_set_winter[start]
+    tw = t_set_winter[start]
     p_heat = 0
     p_cold = 0
        
@@ -118,28 +131,28 @@ def R6C2 (delta, p_heat_max, p_cold_max, rc_solicitation, rc_parameters) :
     cooling_need = [0] #watt
     t_in = [ti] # indoor temperature [°C]
     t_wall = [tw] # wall temperature [°C]
-    for i in range(1,int(8760*3600/delta)): #loop over time (one year), Euler explicit for resolution (stable under condition !)
+    for i in range(start+1,stop): #loop over time (one year), Euler explicit for resolution (stable under condition !)
         ts = (ti/ri + tw/rs + source2[i])/(1/ri + 1/rs)
         th = (tw/rw + t_out[i]/re + source3[i])/(1/rw + 1/re)
         tw = ((th-tw)/rw + (ts-tw)/rs)*delta/cw + tw
         ti = ((ts-ti)/ri + (t_out[i]-ti)/rg + (t_out[i]-ti)/rv + source1[i] + p_heat + p_cold)*delta/ci + ti
          
         p_heat = ci*(t_set_winter[i]-ti)/delta + (ti-ts)/ri + (ti-t_out[i])/rg + (ti-t_out[i])/rv - source1[i]
-        p_heat  = np.min([np.max([0,p_heat]),p_heat_max])
+        p_heat  = np.min([np.max([0,p_heat]),p_heat_max[i]])
         p_cold = ci*(t_set_summer[i]-ti)/delta + (ti-ts)/ri + (ti-t_out[i])/rg + (ti-t_out[i])/rv - source1[i]
-        p_cold = np.max([np.min([0,p_cold]),p_cold_max])
+        p_cold = np.max([np.min([0,p_cold]),p_cold_max[i]])
         
         heating_need.append(p_heat)
         cooling_need.append(p_cold)
         t_in.append(ti)
         t_wall.append(tw)
     
-    return (heating_need, cooling_need, t_in, t_wall)
+    return (np.array(heating_need), np.array(cooling_need), np.array(t_in), np.array(t_wall))
 
-(heating_need, cooling_need, t_in, t_wall) = R6C2(delta, p_heat_max, p_cold_max, rc_solicitation, rc_parameters)
+(heating_need, cooling_need, t_in, t_wall) = R6C2(simu_parameters, rc_solicitation, rc_parameters)
 
 #%% print some figures
-plt.figure(1)
+plt.figure('temperature')
 plt.plot(np.repeat(t_set_winter,int(3600/delta)))
 plt.plot(np.repeat(t_set_summer,int(3600/delta)))
 plt.plot(np.repeat(t_out,int(3600/delta)))
@@ -149,7 +162,7 @@ plt.xlabel('time step')
 plt.ylabel('temperature (°C)')
 plt.legend(['t_set_winter','t_set_summer','t_out','t_in', 't_wall'])
 
-plt.figure(2)
+plt.figure('power')
 plt.plot(np.repeat(internal_load_occ,int(3600/delta)))
 plt.plot(np.repeat(internal_load_solar,int(3600/delta)))
 plt.plot(heating_need)
@@ -157,3 +170,64 @@ plt.plot(cooling_need)
 plt.xlabel('time step')
 plt.ylabel('needs (W)')
 plt.legend(['internal_load_occ','internal_load_solar','heating_need','cooling_need'])
+
+#Annual heating needs calculation (MWh)
+annual_heating_need_ref = np.mean(heating_need)*8760/1e6
+print('Annual heating needs (MWh): ', annual_heating_need_ref)
+#Annual cooling needs (MWh)
+annual_cooling_need_ref = np.mean(cooling_need)*8760/1e6
+print('Annual cooling needs (MWh): ',annual_cooling_need_ref)
+# Daily heating needs (Wh)
+daily_heating_need_ref = heating_need.reshape(365, int(24*3600/delta)).mean(1)
+
+
+#%% Evaluation of a retrofit strategy : wall insulation
+print("-----Evaluation of a retrofit strategy : wall insulation-----")
+rc_parameters_retrofit = rc_parameters.copy()
+rc_parameters_retrofit['r_cond_wall'] = 1/((1)*s_out) # u_out = 1 after retrofit strategy
+(heating_need_retrofit, cooling_need_retrofit, t_in_retrofit, t_wall_retrofit) = R6C2(simu_parameters, 
+                                                                    rc_solicitation, rc_parameters_retrofit)
+
+
+annual_heating_need_retrofit = np.mean(heating_need_retrofit)*8760/1e6
+annual_cooling_need_retrofit = np.mean(cooling_need_retrofit)*8760/1e6
+print('Strategy decrease heating needs by: ' , np.round((annual_heating_need_ref-annual_heating_need_retrofit)/annual_heating_need_ref*100,1), '%' )
+print('Strategy decrease cooling needs by (!!!): ' , np.round((-annual_cooling_need_ref+annual_cooling_need_retrofit)/annual_heating_need_ref*100,1), '%' )
+#TODO change ventilation strategy to reduce cooling needs
+
+#%% Parameter identification from daily energy measurment (10th to 21th first day of the year)
+print("-----modele calibration from measured data-----")
+daily_heating_need_measured = np.array([7464, 7321, 7219, 7077, 6975, 6833, 6722, 
+                                        6610, 6469, 6349, 6248])
+# We want to indentify 'r_cond_wall' to match measured data with simulated data
+plt.figure('identification')
+plt.plot(daily_heating_need_measured, '*k')
+plt.ylabel('daily_heating_need (Wh)')
+plt.ylabel('time (day)')
+possible_r_cond_wall = np.linspace(rc_parameters['r_cond_wall'], rc_parameters['r_cond_wall']/3,20)
+rc_parameters_temp = rc_parameters.copy()
+resu_rmse = []
+resu_identification = []
+for i in possible_r_cond_wall:
+    rc_parameters_temp['r_cond_wall'] = i
+    (heating_need_temp, cooling_need_temp, t_in_temp, t_wall_temp) = R6C2(simu_parameters, 
+                                                                    rc_solicitation, rc_parameters_temp)
+    daily_heating_need_temp = heating_need_temp.reshape(365, int(24*3600/delta)).mean(1)[10:21]
+    print('r_cond_wall = ', str(i).format('E') )
+    rmse = (np.mean((daily_heating_need_measured - daily_heating_need_temp)**2))**0.5
+    print('RMSE = ', np.round(rmse,1))
+    resu_identification.append(i)
+    resu_rmse.append(rmse)
+    plt.plot(daily_heating_need_temp)
+r_cond_wall_id = resu_identification[np.argmin(resu_rmse)]
+print('identified value of r_cond_wall: ' , r_cond_wall_id )
+#TODO identify two parameters instead of one.
+
+
+#%% stop the heating system every evening beween 7 p.m and 9 p.m (2 hours) to reduce the stress on the network
+#what is the impact on indoor comfort ?
+
+#%% Store energy during afternoon hours (2 p.m to 3 p.m)  by optimizing temperature setpoint (or power?)
+# We have a specific constraint: it is not possible to lower the temperature setpoint, we can only increase it
+
+
