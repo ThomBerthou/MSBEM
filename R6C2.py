@@ -131,21 +131,36 @@ def R6C2 (simu_parameters, rc_solicitation, rc_parameters) :
     cooling_need = [0] #watt
     t_in = [ti] # indoor temperature [°C]
     t_wall = [tw] # wall temperature [°C]
-    for i in range(start+1,stop): #loop over time (one year), Euler explicit for resolution (stable under condition !)
-        ts = (ti/ri + tw/rs + source2[i])/(1/ri + 1/rs)
-        th = (tw/rw + t_out[i]/re + source3[i])/(1/rw + 1/re)
-        tw = ((th-tw)/rw + (ts-tw)/rs)*delta/cw + tw
-        ti = ((ts-ti)/ri + (t_out[i]-ti)/rg + (t_out[i]-ti)/rv + source1[i] + p_heat + p_cold)*delta/ci + ti
-         
-        p_heat = ci*(t_set_winter[i]-ti)/delta + (ti-ts)/ri + (ti-t_out[i])/rg + (ti-t_out[i])/rv - source1[i]
-        p_heat  = np.min([np.max([0,p_heat]),p_heat_max[i]])
-        p_cold = ci*(t_set_summer[i]-ti)/delta + (ti-ts)/ri + (ti-t_out[i])/rg + (ti-t_out[i])/rv - source1[i]
-        p_cold = np.max([np.min([0,p_cold]),p_cold_max[i]])
+    for i in range(1,int(8760*3600/delta)): 
+        # computation at the current time step
+        ts = (ti / ri + tw / rs + source2[i]) / (1 / ri + 1 / rs)
+        th = (tw / rw + t_out[i] / re + source3[i]) / (1 / rw + 1 / re)
         
+        # Crank-Nicolson scheme only for nodes linked with a capacity as in ISO 13790. Other 
+        # temperatures are constant during the time step. Thus 'semi-semi-explicit' resolution.
+        tw_next = (tw + delta/(2*cw) * ((2*th - tw) / rw + (2*ts - tw)/rs)) /\
+                  (1 + delta/(2*cw) * (1/rw + 1/rs))
+        # instead of 2*f[i] one could implement f[i] + f[i+1], small difference
+        ti_next = (ti + delta/(2*ci) * ((2*ts - ti)/ri + (2*t_out[i] - ti)/rg + (2*t_out[i] - ti)/rv + 2*source1[i] + 2*p_heat + 2*p_cold))/\
+                  (1 + delta/(2*ci) * (1/ri + 1/rg + 1/rv))
+
+        # p_heat/p_cold are based on a explicit formulation.
+        p_heat = ci * (t_set_winter[i] - ti_next) / delta + (ti_next - ts) / ri + (ti_next - t_out[i]) / rg + (
+                    ti_next - t_out[i]) / rv - source1[i]
+
+        p_heat = np.min([np.max([0, p_heat]), p_heat_max])
+        p_cold = ci * (t_set_summer[i] - ti_next) / delta + (ti_next - ts) / ri + (ti_next - t_out[i]) / rg + (
+                    ti_next - t_out[i]) / rv - source1[i]
+        p_cold = np.max([np.min([0, p_cold]), p_cold_max])
+
         heating_need.append(p_heat)
         cooling_need.append(p_cold)
-        t_in.append(ti)
-        t_wall.append(tw)
+        t_in.append(ti_next)
+        t_wall.append(tw_next)
+
+        # replace for next time step
+        tw = tw_next
+        ti = ti_next
     
     return (np.array(heating_need), np.array(cooling_need), np.array(t_in), np.array(t_wall))
 
