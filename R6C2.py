@@ -72,7 +72,7 @@ rc_parameters['r_conv_ext'] = 1/(h_out*s_out)
 rc_parameters['r_cond_wall'] = 1/(u_out*s_out)
 rc_parameters['r_conv_int'] = 1/(h_in*s_in)
 rc_parameters['r_infiltration'] = 1/(rho_air*c_air*m_air_new*v_in/3600)
-rc_parameters['r_wondows'] = 1/(u_windows*s_windows)
+rc_parameters['r_windows'] = 1/(u_windows*s_windows)
 rc_parameters['C_air'] = v_in * c_air * rho_air * 15 # add inertia of furniture and light walls (x15)
 rc_parameters['C_wall'] = inertia_surf * s_floor
     
@@ -102,7 +102,7 @@ def R6C2 (simu_parameters, rc_solicitation, rc_parameters) :
     stop = int(simu_parameters['stop'] * 24*3600/delta)
     
     #RC values from rc_parameters
-    rg = rc_parameters['r_wondows']
+    rg = rc_parameters['r_windows']
     rv = rc_parameters['r_infiltration']
     re = rc_parameters['r_conv_ext']
     rw = rc_parameters['r_cond_wall']
@@ -166,7 +166,7 @@ def R6C2_crank_nicolson(simu_parameters, rc_solicitation, rc_parameters) :
     stop = int(simu_parameters['stop'] * 24*3600/delta)
     
     #RC values from rc_parameters
-    rg = rc_parameters['r_wondows']
+    rg = rc_parameters['r_windows']
     rv = rc_parameters['r_infiltration']
     re = rc_parameters['r_conv_ext']
     rw = rc_parameters['r_cond_wall']
