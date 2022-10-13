@@ -60,7 +60,7 @@ s_floor = 100 # living floor [m²]
 s_in = 435 # opaque walls surface (vertical and horizontal) in contact with indoor temperature [m²]
 s_out = 235 # opaque walls surface (vertical and horizontal) in contact with outdoor temperature [m²]
 s_windows = 15 # surface of windows [m²]
-u_out = 1.5 # mean U value of opaques walls (vertical and horizontal) [W/(K.m²)]
+u_out = 1.5 # mean U value of opaques walls (vertical and horizontal), conduction only [W/(K.m²)]
 u_windows = 2.5 #mean U value of windows (conduction and convection included) [W/(K.m²)]
 h_in = 6 # indoor convection coefficient [W/(K.m²)]
 h_out = 20 # outdoor convection coefficient [W/(K.m²)]
@@ -106,10 +106,11 @@ def R6C2 (simu_parameters, rc_solicitation, rc_parameters) :
     rv = rc_parameters['r_infiltration']
     re = rc_parameters['r_conv_ext']
     rw = rc_parameters['r_cond_wall']
-    rs = rc_parameters['r_conv_int']
+    rs = rc_parameters['r_conv_int'] # rs model the first centimeters of the wall
     ri = rc_parameters['r_conv_int']
     ci = rc_parameters['C_air']
     cw = rc_parameters['C_wall']
+    rw = rw - rs # rw correction to maintain the total equivalent resistance value
     
     #Solicitation from rc_solicitation adapted to chosen simulation time step
     alpha = 0.5 # radiative part of internal loads
@@ -174,6 +175,7 @@ def R6C2_crank_nicolson(simu_parameters, rc_solicitation, rc_parameters) :
     ri = rc_parameters['r_conv_int']
     ci = rc_parameters['C_air']
     cw = rc_parameters['C_wall']
+    rw = rw - rs
     
     #Solicitation from rc_solicitation adapted to chosen simulation time step
     alpha = 0.5 # radiative part of internal loads
