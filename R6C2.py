@@ -115,7 +115,7 @@ def R6C2 (simu_parameters, rc_solicitation, rc_parameters) :
     #Solicitation from rc_solicitation adapted to chosen simulation time step
     alpha = 0.5 # radiative part of internal loads
     source1 = np.repeat((1-alpha) * (rc_solicitation['internal_load_occ']), int(3600/delta))
-    source2 = np.repeat(alpha * (rc_solicitation['internal_load_occ'] + rc_solicitation['internal_load_solar']), int(3600/delta))
+    source2 = np.repeat(alpha * rc_solicitation['internal_load_occ'] + rc_solicitation['internal_load_solar'], int(3600/delta))
     source3 = np.repeat(rc_solicitation['external_load_solar'], int(3600/delta))
     t_out = np.repeat(rc_solicitation['t_out'], int(3600/delta))
     t_set_winter = np.repeat(rc_solicitation['t_set_winter'], int(3600/delta))
@@ -180,7 +180,7 @@ def R6C2_crank_nicolson(simu_parameters, rc_solicitation, rc_parameters) :
     #Solicitation from rc_solicitation adapted to chosen simulation time step
     alpha = 0.5 # radiative part of internal loads
     source1 = np.repeat((1-alpha) * (rc_solicitation['internal_load_occ']), int(3600/delta))
-    source2 = np.repeat(alpha * (rc_solicitation['internal_load_occ'] + rc_solicitation['internal_load_solar']), int(3600/delta))
+    source2 = np.repeat(alpha * rc_solicitation['internal_load_occ'] + rc_solicitation['internal_load_solar'], int(3600/delta))
     source3 = np.repeat(rc_solicitation['external_load_solar'], int(3600/delta))
     t_out = np.repeat(rc_solicitation['t_out'], int(3600/delta))
     t_set_winter = np.repeat(rc_solicitation['t_set_winter'], int(3600/delta))
